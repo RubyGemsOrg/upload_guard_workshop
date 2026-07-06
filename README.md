@@ -1,39 +1,100 @@
-# UploadGuardWorkshop
+# UploadGuard Workshop
 
-TODO: Delete this and the text below, and describe your gem
+`upload_guard_workshop` is a deliberately insecure Ruby gem for the RubyConf 2026 workshop **From Scan to Fix: A Maintainer's Guide to Gem Security**.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/upload_guard_workshop`. To experiment with that code, run `bin/console` for an interactive prompt.
+The gem models a small upload-validation library that a Rails SaaS might use before storing company logos or invoice PDFs. It is realistic enough to scan, triage, test, and patch, but it is workshop-only and intentionally unsafe for production.
 
-## Installation
+## Workshop Safety Notice
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+This repository is for local training only.
 
-Install the gem and add to the application's Gemfile by executing:
+- Do not use this gem in a real application.
+- Do not publish this gem to RubyGems.org or any normal gem server.
+- Do not add release workflows, trusted publishing, or RubyGems API key setup.
+- Keep the intentionally vulnerable behavior intact until the workshop exercise asks you to fix it.
 
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+The gemspec uses `allowed_push_host` with `https://example.invalid`, and the release rake task aborts with a workshop warning.
+
+## Local Setup
+
+Clone the repository, then run:
+
+```sh
+bundle install
+bundle exec rake
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+The default rake task runs the test suite and RuboCop. Core workshop setup should not require network access after dependencies are installed.
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+To try the gem from a local checkout in another app:
+
+```ruby
+gem "upload_guard_workshop", path: "../upload_guard_workshop"
 ```
 
-## Usage
+## Example Usage
 
-TODO: Write usage instructions here
+```ruby
+logo_guard = UploadGuard::Guard.logo
+invoice_guard = UploadGuard::Guard.invoice_pdf
 
-## Development
+logo_result = logo_guard.validate(params[:company][:logo])
+invoice_result = invoice_guard.validate(params[:invoice][:pdf])
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+if logo_result.accepted?
+  storage_path = logo_guard.storage_path(Rails.root.join("tmp/uploads"), params[:company][:logo])
+  # Store or enqueue the upload in the host application.
+else
+  Rails.logger.warn("Logo rejected: #{logo_result.errors.join(", ")}")
+end
+```
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+See `examples/rails_controller.rb` for a Rails-flavored controller sketch.
 
-## Contributing
+## Public API
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/upload_guard_workshop.
+`UploadGuard::Guard.new` accepts:
 
-## License
+- `allowed_mime_types`: MIME types that upload metadata may claim.
+- `allowed_extensions`: filename extensions that are expected.
+- `max_size`: maximum file size in bytes.
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+Convenience constructors:
+
+- `UploadGuard::Guard.logo`
+- `UploadGuard::Guard.invoice_pdf`
+
+Useful methods:
+
+- `accepted?(upload)`
+- `validate(upload)`
+- `safe_filename(upload)`
+- `storage_path(base_dir, upload)`
+- `image?(upload)`
+- `document?(upload)`
+
+An upload object is expected to respond to `original_filename`, `content_type`, and `size`, matching the shape of common Rails upload objects.
+
+## Intentional Vulnerabilities
+
+These behaviors are intentional workshop material:
+
+- The guard trusts caller-supplied `content_type` metadata instead of inspecting bytes.
+- Extension validation uses weak substring matching, so names like `invoice.pdf.exe` are accepted.
+- `safe_filename` preserves path segments from `original_filename`.
+- `storage_path` joins the preserved filename to the destination directory, allowing path traversal-shaped output.
+
+Tests document these behaviors so attendees can see the baseline before fixing anything.
+
+## Maintainer Workflow Practice
+
+Suggested workshop loop:
+
+1. Read a vulnerability report or scanner result.
+2. Reproduce the behavior with the fixture files in `test/fixtures/files`.
+3. Decide whether the finding is a true positive, false positive, or nuanced risk.
+4. Add or update tests that express the desired secure behavior.
+5. Patch the implementation.
+6. Run `bundle exec rake` and explain the impact.
+
+Facilitators can use `docs/facilitator_notes.md` for the intended findings and discussion prompts.

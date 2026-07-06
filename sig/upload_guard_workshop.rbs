@@ -1,4 +1,36 @@
-module UploadGuardWorkshop
+module UploadGuard
   VERSION: String
-  # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+
+  class Error < StandardError
+  end
+
+  class Result
+    attr_reader accepted: bool
+    attr_reader errors: Array[String]
+    attr_reader filename: String
+
+    def accepted?: () -> bool
+  end
+
+  class Guard
+    DEFAULT_LOGO_TYPES: Array[String]
+    DEFAULT_DOCUMENT_TYPES: Array[String]
+
+    attr_reader allowed_mime_types: Array[String]
+    attr_reader allowed_extensions: Array[String]
+    attr_reader max_size: Integer
+
+    def self.logo: (?max_size: Integer) -> Guard
+    def self.invoice_pdf: (?max_size: Integer) -> Guard
+
+    def initialize: (allowed_mime_types: Array[String], ?allowed_extensions: Array[String], max_size: Integer) -> void
+    def accepted?: (untyped upload) -> bool
+    def validate: (untyped upload) -> Result
+    def safe_filename: (untyped upload) -> String
+    def storage_path: (String base_dir, untyped upload) -> String
+    def image?: (untyped upload) -> bool
+    def document?: (untyped upload) -> bool
+  end
 end
+
+UploadGuardWorkshop: singleton(UploadGuard)
