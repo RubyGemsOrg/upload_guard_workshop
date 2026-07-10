@@ -80,6 +80,10 @@ shows the result and the controller's UploadGuard call, and never stores the
 file. It loads Tailwind CSS from its development-only Play CDN, so its styling
 requires an internet connection.
 
+## Workshop Feedback
+
+Please [share your feedback about the workshop](https://forms.gle/o4QhkGdpx5wkcXat5).
+
 <details>
 <summary><strong>Intentional Vulnerabilities</strong></summary>
 
