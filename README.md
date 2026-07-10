@@ -68,31 +68,8 @@ end
 
 See `examples/rails_controller.rb` for a Rails-flavored controller sketch.
 
-## Public API
-
-`UploadGuard::Guard.new` accepts:
-
-- `allowed_mime_types`: MIME types that upload metadata may claim.
-- `allowed_extensions`: filename extensions that are expected.
-- `max_size`: maximum file size in bytes.
-
-Convenience constructors:
-
-- `UploadGuard::Guard.logo`
-- `UploadGuard::Guard.invoice_pdf`
-
-Useful methods:
-
-- `accepted?(upload)`
-- `validate(upload)`
-- `safe_filename(upload)`
-- `storage_path(base_dir, upload)`
-- `image?(upload)`
-- `document?(upload)`
-
-An upload object is expected to respond to `original_filename`, `content_type`, and `size`, matching the shape of common Rails upload objects.
-
-## Intentional Vulnerabilities
+<details>
+<summary><strong>Intentional Vulnerabilities</strong></summary>
 
 These behaviors are intentional workshop material:
 
@@ -103,15 +80,4 @@ These behaviors are intentional workshop material:
 
 Tests document these behaviors so attendees can see the baseline before fixing anything.
 
-## Maintainer Workflow Practice
-
-Suggested workshop loop:
-
-1. Read a vulnerability report or scanner result.
-2. Reproduce the behavior with the fixture files in `test/fixtures/files`.
-3. Decide whether the finding is a true positive, false positive, or nuanced risk.
-4. Add or update tests that express the desired secure behavior.
-5. Patch the implementation.
-6. Run `bundle exec rake` and explain the impact.
-
-Facilitators can use `docs/facilitator_notes.md` for the intended findings and discussion prompts.
+</details>

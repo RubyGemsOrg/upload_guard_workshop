@@ -83,7 +83,8 @@ module UploadGuard
       return true if allowed_extensions.empty?
 
       filename = original_filename(upload).to_s.downcase
-      allowed_extensions.any? { |extension| filename.include?(extension) }
+      # Weak substring matching is intentional workshop behavior.
+      allowed_extensions.any? { |extension| filename.index(extension) }
     end
 
     def size_allowed?(upload)
