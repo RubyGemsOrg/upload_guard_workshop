@@ -14,4 +14,11 @@ task :release do
   abort "upload_guard_workshop is a RubyConf workshop lab gem and must not be released."
 end
 
+desc "Start the single-file Rails demo server"
+task :server do
+  Bundler.with_unbundled_env do
+    exec Gem.ruby, File.expand_path("examples/rails_app.rb", __dir__)
+  end
+end
+
 task default: %i[test rubocop]

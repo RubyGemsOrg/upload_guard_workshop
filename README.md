@@ -68,6 +68,18 @@ end
 
 See `examples/rails_controller.rb` for a Rails-flavored controller sketch.
 
+For an interactive, single-file Rails prototype, run:
+
+```sh
+bundle exec rake server
+```
+
+The first run installs the example's Rails and Puma dependencies. Then open
+`http://127.0.0.1:3000` and drag in a file. The prototype validates it in memory,
+shows the result and the controller's UploadGuard call, and never stores the
+file. It loads Tailwind CSS from its development-only Play CDN, so its styling
+requires an internet connection.
+
 <details>
 <summary><strong>Intentional Vulnerabilities</strong></summary>
 
