@@ -17,10 +17,27 @@ The gemspec uses `allowed_push_host` with `https://example.invalid`, and the rel
 
 ## Local Setup
 
-Clone the repository, then run:
+Clone the repository, then check whether your active environment is ready:
+
+```sh
+./bin/doctor
+```
+
+The doctor is read-only. It checks the active Ruby against the gem's supported
+version, verifies Bundler and the installed dependencies, and confirms that the
+library loads. It reports all useful problems in one run without installing or
+changing anything.
+
+If dependencies are missing, install them and rerun the doctor:
 
 ```sh
 bundle install
+./bin/doctor
+```
+
+Once the doctor reports that the environment is ready, run:
+
+```sh
 bundle exec rake
 ```
 

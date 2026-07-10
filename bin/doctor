@@ -1,0 +1,195 @@
+#!/bin/sh
+
+failures=0
+ruby_runnable=false
+bundler_usable=false
+bundle_complete=false
+locked_bundler_version=
+
+pass() {
+  printf '[OK] %s\n' "$1"
+}
+
+fail() {
+  failures=$((failures + 1))
+  printf '[FAIL] %s\n' "$1"
+}
+
+skip() {
+  printf '[SKIP] %s\n' "$1"
+}
+
+detail() {
+  if [ -n "$1" ]; then
+    printf '%s\n' "$1" | while IFS= read -r line; do
+      printf '       %s\n' "$line"
+    done
+  fi
+}
+
+bundler_install_remedy() {
+  if [ -n "$locked_bundler_version" ]; then
+    detail "Install Bundler $locked_bundler_version for the active Ruby (for example: gem install bundler:$locked_bundler_version)."
+  else
+    detail "Install Bundler for the active Ruby, then run bin/doctor again."
+  fi
+}
+
+case $0 in
+  */*) script_parent=${0%/*} ;;
+  *) script_parent=. ;;
+esac
+
+script_directory=$(CDPATH= cd -P "$script_parent" 2>/dev/null && pwd)
+project_root=$(CDPATH= cd -P "$script_directory/.." 2>/dev/null && pwd)
+
+printf 'UploadGuard Workshop doctor\n\n'
+
+if [ -z "$script_directory" ] || [ -z "$project_root" ]; then
+  fail "The project directory could not be resolved from $0."
+  detail "Run the doctor from an intact UploadGuard Workshop checkout."
+  printf '\nFound %s environment problem(s).\n' "$failures"
+  exit 1
+fi
+
+if ruby_path=$(command -v ruby 2>/dev/null); then
+  ruby_description=$(ruby --version 2>&1)
+  ruby_status=$?
+
+  if [ "$ruby_status" -eq 0 ]; then
+    ruby_runnable=true
+    pass "Ruby is available."
+    detail "$ruby_description"
+    detail "Executable: $ruby_path"
+  else
+    fail "Ruby is on PATH but could not be started."
+    detail "$ruby_description"
+    detail "Install or activate a working Ruby supported by the gemspec."
+  fi
+else
+  fail "Ruby was not found on PATH."
+  detail "Install or activate a Ruby version supported by the gemspec."
+fi
+
+if [ "$ruby_runnable" = true ]; then
+  ruby_version=$(ruby -e 'print RUBY_VERSION' 2>&1)
+  ruby_version_status=$?
+  requirement_result=$(
+    ruby -rrubygems -e '
+      begin
+        specification = Gem::Specification.load(ARGV.fetch(0))
+        raise "the gemspec could not be loaded" unless specification
+
+        requirement = specification.required_ruby_version
+        puts requirement
+        exit(requirement.satisfied_by?(Gem::Version.new(RUBY_VERSION)) ? 0 : 3)
+      rescue StandardError => error
+        warn error.message
+        exit 2
+      end
+    ' "$project_root/upload_guard_workshop.gemspec" 2>&1
+  )
+  requirement_status=$?
+
+  if [ "$ruby_version_status" -ne 0 ]; then
+    fail "The active Ruby version could not be determined."
+    detail "$ruby_version"
+    detail "Install or activate a working Ruby supported by the gemspec, then run bin/doctor again."
+  elif [ "$requirement_status" -eq 0 ]; then
+    pass "Ruby $ruby_version satisfies the gemspec requirement ($requirement_result)."
+  elif [ "$requirement_status" -eq 3 ]; then
+    fail "Ruby $ruby_version does not satisfy the gemspec requirement ($requirement_result)."
+    detail "Install or activate a compatible Ruby, then run bin/doctor again."
+  else
+    fail "The Ruby requirement could not be read from the gemspec."
+    detail "$requirement_result"
+    detail "Restore a valid gemspec, then run bin/doctor again."
+  fi
+else
+  skip "Ruby compatibility was not checked because Ruby is unavailable."
+fi
+
+if [ "$ruby_runnable" = true ]; then
+  if [ -f "$project_root/Gemfile.lock" ]; then
+    locked_bundler_version=$(
+      ruby -e '
+        lockfile = File.read(ARGV.fetch(0))
+        match = lockfile.match(/^BUNDLED WITH\n\s+(\S+)/)
+        print match[1] if match
+      ' "$project_root/Gemfile.lock" 2>/dev/null
+    )
+  fi
+
+  if bundle_path=$(command -v bundle 2>/dev/null); then
+    bundler_description=$(CDPATH= cd -P "$project_root" && bundle --version 2>&1)
+    bundler_status=$?
+
+    if [ "$bundler_status" -eq 0 ]; then
+      active_bundler_version=${bundler_description##* }
+
+      if [ -n "$locked_bundler_version" ] && [ "$active_bundler_version" != "$locked_bundler_version" ]; then
+        fail "Bundler $active_bundler_version does not match the lockfile version ($locked_bundler_version)."
+        bundler_install_remedy
+      else
+        bundler_usable=true
+        pass "Bundler is available."
+        detail "$bundler_description"
+        detail "Executable: $bundle_path"
+      fi
+    else
+      fail "Bundler is on PATH but could not be started."
+      detail "$bundler_description"
+      bundler_install_remedy
+    fi
+  else
+    fail "Bundler was not found on PATH."
+    bundler_install_remedy
+  fi
+else
+  skip "Bundler was not checked because Ruby is unavailable."
+fi
+
+if [ "$bundler_usable" = true ]; then
+  bundle_check_output=$(CDPATH= cd -P "$project_root" && BUNDLE_FROZEN=true bundle check --dry-run 2>&1)
+  bundle_check_status=$?
+
+  if [ "$bundle_check_status" -eq 0 ]; then
+    bundle_complete=true
+    pass "Bundle dependencies are installed."
+  else
+    fail "Bundle dependencies are incomplete."
+    detail "$bundle_check_output"
+    detail "Run bundle install, then run bin/doctor again."
+  fi
+else
+  skip "Bundle dependencies were not checked because a usable Bundler is unavailable."
+fi
+
+if [ "$bundle_complete" = true ]; then
+  load_output=$(
+    CDPATH= cd -P "$project_root" &&
+      BUNDLE_FROZEN=true bundle exec ruby -Ilib -e 'require "upload_guard_workshop"' 2>&1
+  )
+  load_status=$?
+
+  if [ "$load_status" -eq 0 ]; then
+    pass "The UploadGuard library loads successfully through Bundler."
+  else
+    fail "The UploadGuard library could not be loaded through Bundler."
+    detail "$load_output"
+    detail "Resolve the load error, then run bin/doctor again."
+  fi
+else
+  skip "The library load check was not run because the bundle is unavailable."
+fi
+
+printf '\n'
+if [ "$failures" -eq 0 ]; then
+  printf 'Your environment is ready.\n'
+  printf 'Run bundle exec rake to execute the tests and lint.\n'
+  exit 0
+fi
+
+printf 'Found %s environment problem(s).\n' "$failures"
+printf 'Resolve the failures above, then run bin/doctor again.\n'
+exit 1
