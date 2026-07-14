@@ -1,0 +1,10 @@
+{
+  "name": "UploadGuard Workshop",
+  "image": "mcr.microsoft.com/devcontainers/ruby:4.0",
+  "postCreateCommand": "bin/setup && bin/doctor",
+  "customizations": {
+    "vscode": {
+      "extensions": ["Shopify.ruby-lsp"]
+    }
+  }
+}

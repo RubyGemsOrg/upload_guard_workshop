@@ -49,6 +49,14 @@ To try the gem from a local checkout in another app:
 gem "upload_guard_workshop", path: "../upload_guard_workshop"
 ```
 
+## Stuck? Use the Dev Container
+
+If local setup fails, use the repository's dev container as a fallback environment. You need either VS Code with the Dev Containers extension and Docker Desktop, or GitHub Codespaces — no local Ruby required.
+
+1. Open the repository in VS Code and choose **Reopen in Container** (or create a Codespace on GitHub).
+2. Wait for the first boot to finish — the container runs `bin/setup` and `bin/doctor` automatically.
+3. Look for the message `Your environment is ready.` in the setup output, then continue with `bundle exec rake`.
+
 ## Example Usage
 
 ```ruby

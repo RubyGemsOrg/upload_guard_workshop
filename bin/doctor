@@ -15,6 +15,10 @@ fail() {
   printf '[FAIL] %s\n' "$1"
 }
 
+warn() {
+  printf '[WARN] %s\n' "$1"
+}
+
 skip() {
   printf '[SKIP] %s\n' "$1"
 }
@@ -127,14 +131,26 @@ if [ "$ruby_runnable" = true ]; then
     if [ "$bundler_status" -eq 0 ]; then
       active_bundler_version=${bundler_description##* }
 
-      if [ -n "$locked_bundler_version" ] && [ "$active_bundler_version" != "$locked_bundler_version" ]; then
-        fail "Bundler $active_bundler_version does not match the lockfile version ($locked_bundler_version)."
-        bundler_install_remedy
-      else
-        bundler_usable=true
-        pass "Bundler is available."
-        detail "$bundler_description"
-        detail "Executable: $bundle_path"
+      bundler_usable=true
+      pass "Bundler is available."
+      detail "$bundler_description"
+      detail "Executable: $bundle_path"
+
+      if [ -n "$locked_bundler_version" ]; then
+        active_bundler_major=${active_bundler_version%%.*}
+        locked_bundler_major=${locked_bundler_version%%.*}
+
+        if [ -n "$active_bundler_major" ] && [ -n "$locked_bundler_major" ]; then
+          case "$active_bundler_major$locked_bundler_major" in
+            *[!0-9]*) ;;
+            *)
+              if [ "$active_bundler_major" -lt "$locked_bundler_major" ]; then
+                warn "Bundler $active_bundler_version is older than the lockfile version ($locked_bundler_version)."
+                bundler_install_remedy
+              fi
+              ;;
+          esac
+        fi
       fi
     else
       fail "Bundler is on PATH but could not be started."
