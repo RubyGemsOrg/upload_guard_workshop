@@ -57,6 +57,18 @@ If local setup fails, use the repository's dev container as a fallback environme
 2. Wait for the first boot to finish — the container runs `bin/setup` and `bin/doctor` automatically.
 3. Look for the message `Your environment is ready.` in the setup output, then continue with `bundle exec rake`.
 
+## Workshop Labs
+
+**Lab 1 - Set up to receive a report.** Work through the skeleton [`SECURITY.md`](SECURITY.md). Each section offers a couple of options; pick the one you'd actually ship.
+
+**Lab 2 - A security report arrives.** Read the report in [`reports/`](reports/scrutineer-upload_guard_workshop-20260715-upstream.md), then follow [`docs/lab2_action_sheet.md`](docs/lab2_action_sheet.md) with your group: predict, reproduce, triage, fix, and draft a response.
+
+```sh
+bundle exec ruby -Ilib labs/lab2/reproduce_finding_1.rb
+```
+
+The reproduction scripts in `labs/lab2/` only read files and do path arithmetic. The one write they perform happens inside a temporary directory that is deleted on exit; nothing on your machine is modified.
+
 ## Example Usage
 
 ```ruby

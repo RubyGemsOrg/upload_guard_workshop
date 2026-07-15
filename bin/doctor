@@ -114,6 +114,37 @@ else
 fi
 
 if [ "$ruby_runnable" = true ]; then
+  encoding_output=$(
+    CDPATH= cd -P "$project_root" &&
+      ruby -e '
+        begin
+          File.read("README.md").match?(/workshop/i)
+          exit 0
+        rescue ArgumentError => error
+          $stderr.puts "Default external encoding: #{Encoding.default_external}"
+          $stderr.puts error.message
+          exit 3
+        end
+      ' 2>&1
+  )
+  encoding_status=$?
+
+  if [ "$encoding_status" -eq 0 ]; then
+    pass "Text files can be read with the active locale encoding."
+  elif [ "$encoding_status" -eq 3 ]; then
+    fail "The active locale cannot read this project's UTF-8 text files."
+    detail "$encoding_output"
+    detail "The test suite reads README.md and will fail with this locale."
+    detail "Set a UTF-8 locale (for example: export LANG=en_US.UTF-8), then run bin/doctor again."
+  else
+    fail "The locale encoding check could not be run."
+    detail "$encoding_output"
+  fi
+else
+  skip "The locale encoding check was not run because Ruby is unavailable."
+fi
+
+if [ "$ruby_runnable" = true ]; then
   if [ -f "$project_root/Gemfile.lock" ]; then
     locked_bundler_version=$(
       ruby -e '
