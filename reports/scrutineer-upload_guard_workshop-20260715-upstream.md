@@ -85,11 +85,11 @@ out_of_model_trusted_input — bin/doctor:120 `File.read(ARGV.fetch(0))` reads a
 
 ### Prior art (report-level)
 
-GET /repositories/2/advisories, /packages, /dependents, and /findings?skill=semgrep all returned empty — no published CVE/GHSA, no registry presence, no prior semgrep run. A threat-model scan (id 26, model claude-opus-4-6) and a repo-overview scan (id 46) exist, but `./threat_model.json` was present in the workdir and takes precedence per the skill. The four intentional vulnerabilities are documented as prior art in README.md 'Intentional Vulnerabilities' (lines 96-107), the scan_config.known_bugs list, code comments (lib:86), and the loaded threat model's properties_not_provided (all false_friend:true). They are filed as findings anyway — they are the operator's explicit focus_areas, each is reproduced, and the vulnerable-usage example ships in the gem — with prior-art status disclosed per finding (discovered_via: documentation).
+GET /repositories/2/advisories, /packages, /dependents, and /findings?skill=semgrep all returned empty — no published CVE/GHSA, no registry presence, no prior semgrep run. A threat-model scan (id 26, model claude-opus-4-6) and a repo-overview scan (id 46) exist, but `./threat_model.json` was present in the workdir and takes precedence per the skill.
 
 ### Reach (report-level)
 
-The gem is unpublished by design (gemspec allowed_push_host = https://example.invalid; README workshop-safety notice), so GET /repositories/2/dependents and /packages both returned [] and there are no downstream consumers to survey — the released artefact is the git checkout at 14de4b6. Reach is therefore internal: the vulnerable library methods are public API reached by both shipped examples, and upload_guard_workshop.gemspec packages `examples/**/*.rb`, so the arbitrary-file-write demonstration (examples/rails_controller.rb:35) travels with the gem. Any host application that copies the documented usage from README.md:60-77 or examples/ inherits F1/F2/F3. Brakeman (`brakeman --force`) added no leads: 0 warnings, consistent with the flaws being validation/path-logic bugs rather than Rails taint-graph sinks.
+The gem is unpublished (gemspec allowed_push_host = https://example.invalid), so GET /repositories/2/dependents and /packages both returned [] and there are no downstream consumers to survey — the released artefact is the git checkout at 14de4b6. Reach is therefore internal: the vulnerable library methods are public API reached by both shipped examples, and upload_guard_workshop.gemspec packages `examples/**/*.rb`, so the arbitrary-file-write demonstration (examples/rails_controller.rb:35) travels with the gem. Any host application that copies the documented usage from README.md:60-77 or examples/ inherits F1/F2/F3. Brakeman (`brakeman --force`) added no leads: 0 warnings, consistent with the flaws being validation/path-logic bugs rather than Rails taint-graph sinks.
 
 ## Findings
 
@@ -134,7 +134,7 @@ The gem is unpublished by design (gemspec allowed_push_host = https://example.in
 
 #### Trust boundary
 
-Crosses boundary #1 (HTTP upload client, trusted:no). threat_model entry_points[3] (`upload.original_filename`, source lib:94, attacker_controllable:yes) and entry_points[4] (`safe_filename`, source lib:60) both document the value as attacker-controlled, with `caller_must_enforce` noting the gem does not strip traversal sequences. `base_dir` is the trusted operator value (entry_points[5]); only the filename crosses the boundary. The precondition (a host that writes to storage_path output) is not circular — the gem ships that exact usage in examples/rails_controller.rb, and the method name `safe_filename` invites callers to trust the output (threat_model properties_not_provided[2], false_friend:true).
+Crosses boundary #1 (HTTP upload client, trusted:no). threat_model entry_points[3] (`upload.original_filename`, source lib:94, attacker_controllable:yes) and entry_points[4] (`safe_filename`, source lib:60) both document the value as attacker-controlled, with `caller_must_enforce` noting the gem does not strip traversal sequences. `base_dir` is the trusted operator value (entry_points[5]); only the filename crosses the boundary. The precondition (a host that writes to storage_path output) is not circular — the gem ships that exact usage in examples/rails_controller.rb, and the method name `safe_filename` invites callers to trust the output.
 
 #### Validation
 
@@ -203,11 +203,11 @@ The validate() call accepts the payload (content_type image/png + filename endin
 
 #### Prior art
 
-Discovered via documentation. Documented as intentional workshop behavior: README.md:102-103 ("safe_filename preserves path segments"; "storage_path joins the preserved filename ... allowing path traversal-shaped output"), scan_config.known_bugs[0] and [3], and threat_model.json properties_not_provided[2..3] (false_friend:true) plus known_misuse[0]/[2]. No published advisories (GET /repositories/2/advisories returned []); packages/dependents lists empty. Filed despite prior-art status because it is the operator's focus_area[0], is reproduced end-to-end, and the vulnerable-usage demonstration ships in the gem — the workshop's scan→fix goal expects it surfaced.
+No published advisories (GET /repositories/2/advisories returned []); packages/dependents lists empty.
 
 #### Reach
 
-GET /repositories/2/dependents and /packages both returned [] — the gem is unpublished (allowed_push_host is https://example.invalid), so there are no registry dependents to survey. Reach is instead the shipped example: upload_guard_workshop.gemspec:22-29 packages `examples/**/*.rb`, and examples/rails_controller.rb:35 calls `File.binwrite(guard.storage_path(directory, upload), upload.read)` — the exact known_misuse[0] pattern — making arbitrary file write reachable for any host that copies the shipped example. reach_checked=1 (the shipped example controller), reach_exposed=1.
+GET /repositories/2/dependents and /packages both returned [] — the gem is unpublished (allowed_push_host is https://example.invalid), so there are no registry dependents to survey. Reach is instead the shipped example: upload_guard_workshop.gemspec:22-29 packages `examples/**/*.rb`, and examples/rails_controller.rb:35 calls `File.binwrite(guard.storage_path(directory, upload), upload.read)`, making arbitrary file write reachable for any host that copies the shipped example. reach_checked=1 (the shipped example controller), reach_exposed=1.
 
 #### Rating
 
@@ -236,7 +236,6 @@ High. Impact is arbitrary file write with attacker-controlled contents (→ RCE 
       return true if allowed_extensions.empty?
 
       filename = original_filename(upload).to_s.downcase
-      # Weak substring matching is intentional workshop behavior.
       allowed_extensions.any? { |extension| filename.index(extension) }
 ```
 
@@ -246,7 +245,7 @@ High. Impact is arbitrary file write with attacker-controlled contents (→ RCE 
 
 #### Trust boundary
 
-Crosses boundary #1 (HTTP upload client, trusted:no). threat_model entry_points[2] (`upload.original_filename`, attacker_controllable:yes) and properties_not_provided[1] (source lib:87, false_friend:true: 'Extension checking uses substring matching (String#index) instead of comparing the final extension').
+Crosses boundary #1 (HTTP upload client, trusted:no). threat_model entry_points[2] (`upload.original_filename`, attacker_controllable:yes).
 
 #### Validation
 
@@ -266,11 +265,11 @@ Output:
 invoice.pdf.exe accepted? => true  errors=[]
 ```
 
-`invoice.pdf.exe` passes the invoice_pdf guard's `.pdf` extension allowlist with zero errors because `.pdf` is a substring. A leading match such as `.png` anywhere (e.g. `evil.png.php`) works identically. The test fixture test/fixtures/files/invoice.pdf.exe documents the same payload shape.
+`invoice.pdf.exe` passes the invoice_pdf guard's `.pdf` extension allowlist with zero errors because `.pdf` is a substring. A leading match such as `.png` anywhere (e.g. `evil.png.php`) works identically.
 
 #### Prior art
 
-Discovered via documentation. Documented intentional behavior: README.md:101 ("weak substring matching, so names like invoice.pdf.exe are accepted"), the code comment at lib:86 ("Weak substring matching is intentional workshop behavior"), scan_config.known_bugs[1], threat_model.json properties_not_provided[1]. No advisories (GET /advisories → []).
+No advisories (GET /advisories → []).
 
 #### Reach
 
@@ -336,7 +335,7 @@ An upload whose bytes are 'not an image' but whose content_type is spoofed to im
 
 #### Prior art
 
-Discovered via documentation. Documented intentional behavior: README.md:100 ("trusts caller-supplied content_type metadata instead of inspecting bytes"), scan_config.known_bugs[2], threat_model.json properties_not_provided[0] (false_friend:true, source lib:79) and known_misuse[1]. No advisories on record (GET /advisories → []).
+No advisories on record (GET /advisories → []).
 
 #### Reach
 
